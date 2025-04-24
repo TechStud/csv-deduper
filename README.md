@@ -88,7 +88,7 @@ The csv-deduper.py accepts the following Options...
 
 # Example Outputs
 ```
-:~/scripts$ python3 csv-deduper.py ./my-data.csv
+:~$ python3 csv-deduper.py ./my-data.csv
 
    ██████╗███████╗██╗   ██╗    ██████╗ ███████╗██████╗ ██╗   ██╗██████╗ ███████╗██████╗ 
   ██╔════╝██╔════╝██║   ██║    ██╔══██╗██╔════╝██╔══██╗██║   ██║██╔══██╗██╔════╝██╔══██╗
@@ -114,7 +114,7 @@ The csv-deduper.py accepts the following Options...
 ```
 
 ```
-:~/scripts$ python3 csv-deduper.py -c "Time_(UTC),Item_Number" -sc "Time_(UTC)" -so desc -ch 50000 <file>
+:~$ python3 csv-deduper.py -c "Time_(UTC),Item_Number" -sc "Time_(UTC)" -so desc -ch 50000 <file>
 
    ██████╗███████╗██╗   ██╗    ██████╗ ███████╗██████╗ ██╗   ██╗██████╗ ███████╗██████╗ 
   ██╔════╝██╔════╝██║   ██║    ██╔══██╗██╔════╝██╔══██╗██║   ██║██╔══██╗██╔════╝██╔══██╗
