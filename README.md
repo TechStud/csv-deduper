@@ -28,7 +28,7 @@ To use csv-deduper open a terminal and navigate to the directory/path where `csv
 	:~$ python3 csv-deduper.py [Options] <file>
 
 ### _Examples_:
-* Default, command and file, with no options suplied. This will look for identical rows across the entire dataset within the data <file> name you provide. 
+* Default, command and file, with no options suplied. This will look for identical rows across the entire dataset within the data \<file\> name you provide. 
 
 	- ```:~$ python3 csv-deduper.py <file>```
 	- ```:~$ python3 csv-deduper.py ./my-datafile.csv```
