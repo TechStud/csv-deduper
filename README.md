@@ -83,7 +83,7 @@ The csv-deduper.py accepts the following Options...
 #### `-ch --chunksize` - Useful for large datasets as it will improve system performance and memory efficiency. Loading a large CSV data file into memory can be impractical or even impossible. The chunksize parameter (a single interger value without comma's) allows you to read the file in smaller, more manageable pieces (chunks). Default is set to 10,000. Max is 500,000. Single/double quotes are not required.
 
 ```
-	:~$ python3 csv-deduper.py -c "column name1,column_(name2)" -ch 20000 my-datafile.csv
+	:~$ python3 csv-deduper.py -c "column name1,column_(name2)" -ch 20000 my-data.csv
 ```
 
 # Example Outputs
@@ -115,7 +115,7 @@ The csv-deduper.py accepts the following Options...
 ```
 
 ```
-:~$ python3 csv-deduper.py -c "Time_(UTC),Item_Number" -sc "Time_(UTC)" -so desc -ch 50000 <file>
+:~$ python3 csv-deduper.py -c "Time_(UTC),Item_Number" -sc "Time_(UTC)" -so desc -ch 50000 ./data/my-data.csv
 
    ██████╗███████╗██╗   ██╗    ██████╗ ███████╗██████╗ ██╗   ██╗██████╗ ███████╗██████╗ 
   ██╔════╝██╔════╝██║   ██║    ██╔══██╗██╔════╝██╔══██╗██║   ██║██╔══██╗██╔════╝██╔══██╗
@@ -128,13 +128,13 @@ The csv-deduper.py accepts the following Options...
  Processing... [##################################################] 100% | Time: 1.79 sec | [451,200/451,200]
 
  [ Processing Complete ]
-   Input File : /home/username/scripts/my-data.csv 
+   Input File : /home/username/scripts/data/my-data.csv 
               : ↳ 451,200 rows = 85.78 MB 
      criteria : ↳ Match duplicate rows based on these columns: 'Time_(UTC)' & 'IP_Address'
               : ↳ Keep the first occurance of any duplicates and drop the remaining
               : ↳ Final sorting applied to all rows based on 'Time_(UTC)' in desc order
 
-  Output File : /home/username/scripts/my-data_csv_deduped.csv 
+  Output File : /home/username/scripts/data/my-data_csv_deduped.csv 
               : ↳ 1,382 rows = 544.40 KB 
               : ↳ 449,818 rows were Deduped (99.69%)
               : ↳ Resulting in a 85.25 MB file Reduction (99.38%)
