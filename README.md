@@ -99,6 +99,7 @@ The csv-deduper.py accepts the following Options...
 01000011 01010011 01010110 01000100 01000101 01000100 01010101 01010000 01000101 01010010
 
  Processing... [##################################################] 100% | Time: 2.04 sec | [451,200/451,200]
+
  [ Processing Complete ]
    Input File : /home/username/scripts/my-data.csv 
               : ↳ 451,200 rows = 85.78 MB 
@@ -125,6 +126,7 @@ The csv-deduper.py accepts the following Options...
 01000011 01010011 01010110 01000100 01000101 01000100 01010101 01010000 01000101 01010010
 
  Processing... [##################################################] 100% | Time: 1.79 sec | [451,200/451,200]
+
  [ Processing Complete ]
    Input File : /home/username/scripts/my-data.csv 
               : ↳ 451,200 rows = 85.78 MB 
