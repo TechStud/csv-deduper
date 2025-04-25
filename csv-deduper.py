@@ -1,10 +1,16 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
 #######################################################################################
 ## CSV Deduper
-## Author : TechStud (Jason)
-## Version: 0.2
-## Date   : 2025-04-14
+## - Find and remove duplicate rows in CSV files.
+## Author : TechStud
+## Version: 0.2.1
+## Date   : 2025-04-25
 ## Github : https://github.com/TechStud/csv-deduper
 #######################################################################################
+"""
+__version__ = "1.2.1"
 
 import pandas as pd
 import argparse
@@ -217,6 +223,8 @@ if __name__ == "__main__":
     input_filesize_str = get_file_size(input_file)          # Filesize (as reported by the system) with B/KB/MB.. incl. (string)
     input_filesize_bytes = os.path.getsize(input_file)      # Filesize in bytes (numeric)
     output_file = f"{os.path.splitext(input_file)[0]}_csv_deduped.csv"
+    with open(output_file, 'a') as f:
+        pass  # This will create the file if it doesn't exist
     output_file_name = os.path.basename(output_file)
     output_file_fpath = os.path.realpath(output_file)
     output_filesize_str = get_file_size(output_file)
