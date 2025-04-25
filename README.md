@@ -14,7 +14,7 @@
 
 Need to clean up your CSV files from the command-line? `csv-deduper.py` offers a simple solution. `csv-deduper.py` will efficiently remove duplicate rows from a given CSV file, generating a new CSV containing only the unique data you need. 
 
-Using command-line switches you will the flexibility of specifing particular column(s) for duplicate checking, to select whether to keep the initial or final instance of a duplicate, and to sort your results by a specific column before saving. This tool is powered by the robust `drop_duplicates` functionality of the `pandas` library, ensuring reliable and efficient duplicate removal.
+Using command-line switches you will have the flexibility of specifing particular column(s) for duplicate checking, to select whether to keep the initial or final instance of a duplicate, and to sort your results by a specific column before saving. This tool is powered by the robust `drop_duplicates` functionality of the `pandas` library, ensuring reliable and efficient duplicate removal.
 
 ## Installation
 
