@@ -88,7 +88,7 @@ The csv-deduper.py accepts the following Options...
 
 # Example Outputs
 ```
-:~$ python3 csv-deduper.py ./my-data.csv
+:~$ python3 csv-deduper.py ./my-datafile.csv
 
    ██████╗███████╗██╗   ██╗    ██████╗ ███████╗██████╗ ██╗   ██╗██████╗ ███████╗██████╗ 
   ██╔════╝██╔════╝██║   ██║    ██╔══██╗██╔════╝██╔══██╗██║   ██║██╔══██╗██╔════╝██╔══██╗
@@ -101,13 +101,13 @@ The csv-deduper.py accepts the following Options...
  Processing... [##################################################] 100% | Time: 2.04 sec | [451,200/451,200]
 
  [ Processing Complete ]
-   Input File : /home/username/scripts/my-data.csv 
+   Input File : /home/username/scripts/my-datafile.csv 
               : ↳ 451,200 rows = 85.78 MB 
      criteria : ↳ Match duplicate rows based on all columns.
               : ↳ Keep the first occurance of any duplicates and drop the remaining
               : ↳ Final sorting not applied
 
-  Output File : /home/username/scripts/my-data_deduped.csv 
+  Output File : /home/username/scripts/my-datafile_deduped.csv 
               : ↳ 2,923 rows = 544.40 KB 
               : ↳ 448,277 rows were Deduped (99.35%)
               : ↳ Resulting in a 85.25 MB file Reduction (99.38%)
@@ -115,7 +115,7 @@ The csv-deduper.py accepts the following Options...
 ```
 
 ```
-:~$ python3 csv-deduper.py -c "Time_(UTC),Item_Number" -sc "Time_(UTC)" -so desc -ch 50000 ./data/my-data.csv
+:~$ python3 csv-deduper.py -c "Time_(UTC),Item_Number" -sc "Time_(UTC)" -so desc -ch 50000 ./data/my-datafile.csv
 
    ██████╗███████╗██╗   ██╗    ██████╗ ███████╗██████╗ ██╗   ██╗██████╗ ███████╗██████╗ 
   ██╔════╝██╔════╝██║   ██║    ██╔══██╗██╔════╝██╔══██╗██║   ██║██╔══██╗██╔════╝██╔══██╗
@@ -128,13 +128,13 @@ The csv-deduper.py accepts the following Options...
  Processing... [##################################################] 100% | Time: 1.79 sec | [451,200/451,200]
 
  [ Processing Complete ]
-   Input File : /home/username/scripts/data/my-data.csv 
+   Input File : /home/username/scripts/data/my-datafile.csv 
               : ↳ 451,200 rows = 85.78 MB 
      criteria : ↳ Match duplicate rows based on these columns: 'Time_(UTC)' & 'IP_Address'
               : ↳ Keep the first occurance of any duplicates and drop the remaining
               : ↳ Final sorting applied to all rows based on 'Time_(UTC)' in desc order
 
-  Output File : /home/username/scripts/data/my-data_csv_deduped.csv 
+  Output File : /home/username/scripts/data/my-datafile_csv_deduped.csv 
               : ↳ 1,382 rows = 544.40 KB 
               : ↳ 449,818 rows were Deduped (99.69%)
               : ↳ Resulting in a 85.25 MB file Reduction (99.38%)
