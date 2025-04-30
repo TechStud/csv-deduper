@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-__version__ = "1.2.2"
+__version__ = "0.2.3"
 """
 ####################################################################################################
 ## CSV Deduper
+## - Find and remove duplicate rows in CSV files.
 ## Author : TechStud
-## Date   : 2025-04-25
-## Version: 0.2.2
+## Date   : 2025-04-30
+## Version: 0.2.3
 ## License: MIT License
 ## Github : https://github.com/TechStud/csv-deduper
-## Social : https://bsky.app/profile/techstud.com
 ####################################################################################################
 Description: 
   Quickly and efficiently remove duplicate rows within a CSV data file, based on specified columns 
@@ -40,24 +40,30 @@ Dependencies:
            - 'pip install pandas' to install
 ####################################################################################################
 """
-
 import pandas as pd             # Pandas is a powerful library for data manipulation and analysis
-import argparse                 # used for parsing command-line arguments
-import shutil                   # provides high-level file operations (copying, moving, archiving, etc.)
-import re                       # provides support for regular expressions
 import sys                      # provides access to system-specific parameters and functions
 import os                       # provides a way of using operating system-dependent functionality 
-import time                     # provides time-related functions
-import signal                   # provides mechanisms to handle asynchronous events (signals)
-from datetime import datetime   # provides classes for working with dates and times
 import platform                 # provides access to underlying platform's identifying data
 import subprocess               # provides the ability to spawn new processes, connect to their input/output/error pipes, and obtain their return codes
+import argparse                 # used for parsing command-line arguments
+import shutil                   # provides high-level file operations (copying, moving, archiving, etc.)
+import signal                   # provides mechanisms to handle asynchronous events (signals)
+import re                       # provides support for regular expressions
+import traceback                # provides functionality to trace and format exceptions
+from datetime import datetime   # provides classes for working with dates and times
+import time                     # provides time-related functions
 
+####################################################################################################
 ## User editable Variables
-show_progress = True            # Set to True if you want to Show or False to Hide the Progress bar output after processing has concluded.
-default_chunk_size = 10000      # Safe starting limit for reading the CSV file in chunks.
+use_binary_units = True         # Set to True to use binary filesize units (KiB, MiB,...), False for decimal (KB, MB,...)
+##                                ↳ The International Electrotechnical Commission (IEC) defines...
+##                                   a Kibibyte (KiB) as 1,024 bytes, using the 'binary'  prefix "kibi", which is closer to 2^10.
+##                                   a Kilobyte (KB)  as 1,000 bytes, using the 'decimal' prefix "kilo", which means 1,000. 
+show_progressbar = True         # Set to True if you want to Show or False to Hide the Progress bar output after processing has concluded.
+default_chunk_size = 50000      # Safe starting limit for reading the CSV file in chunks.
 
-## Variables - Do not edit these (unless you know what you're doing!)
+####################################################################################################
+## Variables - Do not edit these or anything below this line! (unless you know what you're doing!!)
 datetimeFormat = '%Y-%m-%d %H:%M:%S.%f' # Format string for datetime objects (currently not directly used)
 NOT_PROVIDED = 'NOT_PROVIDED'           # Sentinel value to indicate an argument was not provided
 file = [NOT_PROVIDED]                   # List to hold the input file path (initially not provided)
@@ -75,6 +81,8 @@ total_iterations = 100                  # Total number of iterations (initially 
 class attr: #Text Attributes - ANSI escape codes for colored terminal output
     CYAN = '\033[96m'
     BLUE = '\033[94m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
     BOLD = '\033[1m'
     ITALIC = '\033[3m'
     END = '\033[0m'
@@ -90,24 +98,6 @@ def app_logo():
   ╚██████╗███████║ ╚████╔╝     ██████╔╝███████╗██████╔╝╚██████╔╝██║     ███████╗██║  ██║
    ╚═════╝╚══════╝  ╚═══╝      ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝ v{__version__}{attr.END}
 {attr.ITALIC}01000011 01010011 01010110 01000100 01000101 01000100 01010101 01010000 01000101 01010010{attr.END}\n''')
-
-def get_file_size(file_path):
-    """
-    Gets the human-readable size of a file.
-
-    Args:
-        file_path (str): The path to the file.
-
-    Returns:
-        str: The file size in bytes, KB, or MB (whichever is most appropriate).
-    """
-    size_bytes = os.path.getsize(file_path)
-    if size_bytes < 1024:
-        return f"{size_bytes} Bytes"
-    elif size_bytes < 1024 * 1024:
-        return f"{size_bytes / 1024:.2f} KB"
-    else:
-        return f"{size_bytes / (1024 * 1024):.2f} MB"
 
 def get_row_count_fast(file_path):
     """
@@ -161,6 +151,7 @@ def progress_bar(iteration, total, elapsed_time):
         total (int): The total number of rows to process.
         elapsed_time (float): The time elapsed since the start of processing.
     """
+    global elapsed_time_str
     elapsed_time_str = elapsed_time
     if elapsed_time < 1: 
         elapsed_time_str = f"{(elapsed_time * 1000):.2f} ms"
@@ -169,7 +160,7 @@ def progress_bar(iteration, total, elapsed_time):
     percent = float(iteration) / total
     arrow = '=' * int(round(percent * bar_length) - 1) + '>'
     spaces = ' ' * (bar_length - len(arrow))
-    sys.stdout.write(f"\r {attr.BOLD}Deduping...{attr.END} [{attr.BLUE}{arrow}{attr.END}{spaces}] {attr.BOLD}{percent:.0%} | Time: {elapsed_time_str}{attr.END}")
+    sys.stdout.write(f"\r {attr.BOLD}Deduping...{attr.END} [{attr.BLUE}{arrow}{attr.END}{spaces}] {attr.BOLD}{percent:.0%} | {attr.BLUE}Time: {elapsed_time_str}{attr.END}")
     sys.stdout.flush()
 
 def handle_resize(signal, frame):
@@ -213,6 +204,8 @@ def deduplicate_csv_enhanced(input_file, columns, output_file, keep, sort_column
     processed_rows = 0                  # Initialize the count of processed rows
     unique_chunks = []                  # List to store unique chunks of data
     fast_row_count = get_row_count_fast(input_file) # Attempt to get a fast row count
+    width = 12
+
     if fast_row_count is not None:
         total_rows = fast_row_count
     else:
@@ -223,6 +216,22 @@ def deduplicate_csv_enhanced(input_file, columns, output_file, keep, sort_column
             total_rows = approx_total_rows 
         except Exception as e:
             print(f"Warning: Could not estimate total rows: {e}")
+
+    # Show the Input file details along with the Criteria
+    print(f"\u200B {attr.BOLD}{'Input File'.rjust(width)} :{attr.END} {attr.ITALIC}{input_file_path}/{attr.END}{attr.BOLD}{attr.BLUE}{input_file_name}{attr.END} ")
+    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳ {format_row_size(total_rows)}{attr.BOLD}{attr.BLUE} | {get_file_size(input_file)}{attr.END} ")
+    if columns_to_dedupe == None:
+        print(f"\u200B {attr.ITALIC}{attr.CYAN}{'criteria'.rjust(width)}{attr.END} {attr.BOLD}: {attr.BLUE}↳{attr.END} Matching duplicate rows based on {attr.BOLD}{attr.BLUE}all columns{attr.END}.")
+    else:
+        print(f"\u200B {attr.ITALIC}{attr.CYAN}{'criteria'.rjust(width)}{attr.END} {attr.BOLD}: {attr.BLUE}↳{attr.END} Matching duplicate rows based on these columns: {attr.BOLD}{attr.BLUE}'{columns_to_dedupe_str}'{attr.END}")
+    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END} Keeping the {attr.BOLD}{attr.BLUE}{keep_option}{attr.END} occurance of any duplicates and dropping the remaining")
+    if sort_order is None and sort_column is None:
+        print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END} Final sorting will {attr.BOLD}{attr.BLUE}not{attr.END} be applied")
+    else:
+        print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END} Final sorting will be applied to all rows based on {attr.BOLD}{attr.BLUE}'{sort_column}'{attr.END} in {attr.BOLD}{attr.BLUE}{sort_order}{attr.END} order")
+    
+    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END}{attr.ITALIC} Will iterate through the data using {attr.BOLD}{attr.BLUE}{chunk_size:,} row{attr.END} chunksize")
+    print("")
 
     reader = pd.read_csv(input_file, chunksize=chunk_size, iterator=True) # Read the CSV file in chunks
     for i, chunk in enumerate(reader):
@@ -257,7 +266,18 @@ def deduplicate_csv_enhanced(input_file, columns, output_file, keep, sort_column
     if sort_column:
         df_unique.sort_values(by=sort_column, ascending=(sort_order == 'asc'), inplace=True) # Sort the unique DataFrame if a sort column is specified
 
+    if show_progressbar:
+        # If user sets show_progressbar to True, the Progress Bar will remain then print a confirmation below it
+        print(f"\n{attr.BOLD}{attr.BLUE} ↳ Deduping Process Complete {attr.END}\n", flush=True)
+    else:
+        # If user sets show_progressbar to False, the Progress Bar line be cleared and a confirmation message will be printed on the same line
+        print("\x1b[2K", end='\r', flush=True) 
+        print(f"{attr.BOLD}{attr.BLUE} Deduping process completed in {elapsed_time_str}{attr.END}\n", flush=True)
+
+    # Large data sets might take some time to write the data to disk. Keep the user informed that this might take some time.
+    print(f" {attr.ITALIC}{attr.CYAN}Please wait... Writing deduped data to {output_file_name}{attr.END}", end='\r', flush=True)
     df_unique.to_csv(output_file, index=False)                              # Write the unique DataFrame to a new CSV file without the index
+    print("\x1b[2K", end='\r', flush=True)                                  # Clear the temporary Please Wait... line before continuing
 
     end_time = datetime.now()                                               # Record the ending datetime
     processing_diff = end_time - start_time                                 # Calculate the total processing time
@@ -266,93 +286,176 @@ def deduplicate_csv_enhanced(input_file, columns, output_file, keep, sort_column
         processing_time = f"{(processing_diff_sec * 1000):.2f} ms"
     else: 
         processing_time = f"{processing_diff_sec:.2f} sec"
-    filesize_diff = subtract_file_sizes(input_filesize_str, output_filesize_str)
+    filesize_diff = subtract_file_sizes(get_file_size(input_file), get_file_size(output_file))
     filesize_percent = (input_filesize_bytes - output_filesize_bytes) / input_filesize_bytes
     output_row_count = len(df_unique)
     final_total_rows = total_rows if total_rows is not None else processed_rows 
     dropped_rows = final_total_rows - output_row_count if final_total_rows is not None else "N/A"
     dropped_percent = (total_rows - output_row_count) / total_rows if total_rows else 0 # Handle case where total_rows is None
-    width = 12
     
-    if show_progress:
-        # If user sets show_progress to True, the Progress Bar will remain then print a confirmation below it
-        print(f"\n{attr.BOLD}{attr.BLUE} ↳ Deduping Process Completed {attr.END}\n", flush=True)
-    else:
-        # If user sets show_progress to False, the Progress Bar line be cleared and a confirmation message will be printed on the same line
-        print("\x1b[2K", end='\r', flush=True) 
-        print(f"{attr.BOLD}{attr.BLUE} Deduping Process Completed {attr.END}\n", flush=True)
-
-    
-    print(f"\u200B {attr.BOLD}{'Input File'.rjust(width)} :{attr.END} {attr.ITALIC}{input_file_path}/{attr.END}{attr.BOLD}{attr.BLUE}{input_file_name}{attr.END} ")
-    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳ {total_rows:,} rows = {input_filesize_str}{attr.END} ")
-    if columns_to_dedupe == None:
-        print(f"\u200B {attr.ITALIC}{attr.CYAN}{'criteria'.rjust(width)}{attr.END} {attr.BOLD}: {attr.BLUE}↳{attr.END} Matching duplicate rows based on {attr.BOLD}{attr.BLUE}all columns{attr.END}.")
-    else:
-        print(f"\u200B {attr.ITALIC}{attr.CYAN}{'criteria'.rjust(width)}{attr.END} {attr.BOLD}: {attr.BLUE}↳{attr.END} Matching duplicate rows based on these columns: {attr.BOLD}{attr.BLUE}'{columns_to_dedupe_str}'{attr.END}")
-    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END} Keeping the {attr.BOLD}{attr.BLUE}{keep_option}{attr.END} occurance of any duplicates and dropping the remaining")
-    if sort_order is None and sort_column is None:
-        print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END} Final sorting will {attr.BOLD}{attr.BLUE}not{attr.END} be applied")
-    else:
-        print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END} Final sorting will be applied to all rows based on {attr.BOLD}{attr.BLUE}'{sort_column}'{attr.END} in {attr.BOLD}{attr.BLUE}{sort_order}{attr.END} order")
-    print("")
     print(f"\u200B {attr.BOLD}{'Output File'.rjust(width)} :{attr.END} {attr.ITALIC}{input_file_path}/{attr.END}{attr.BOLD}{attr.BLUE}{output_file_name}{attr.END} ")
-    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳ {output_row_count:,} rows = {output_filesize_str}{attr.END} ")
-    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END}{attr.ITALIC} {attr.BOLD}{dropped_rows:,} rows{attr.END}{attr.ITALIC} were removed ({dropped_percent:.2%}{attr.END})")
-    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END}{attr.ITALIC} Resulting in a {attr.BOLD}{filesize_diff}{attr.END}{attr.ITALIC} file reduction ({filesize_percent:.2%}{attr.END})")
-    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END}{attr.ITALIC} Total Processing completed in {attr.BOLD}{attr.BLUE}{processing_time}{attr.END}")
-    if chunk_size != default_chunk_size:
-        print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}  ↳{attr.END}{attr.ITALIC} Using ChunkSize: {attr.BOLD}{attr.BLUE}{chunk_size:,} lines{attr.END}")
-    # else:
-        # print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}  ↳{attr.END}{attr.ITALIC} Using default ChunkSize: {attr.BOLD}{attr.BLUE}{chunk_size:,} lines{attr.END}")
-    print("") # Have a clean/empty line before the commline prompt
+    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳ {format_row_size(output_row_count)}{attr.BOLD}{attr.BLUE} | {get_file_size(output_file)}{attr.END} ")
+    print(f"\u200B {attr.ITALIC}{attr.CYAN}{'results'.rjust(width)}{attr.END} {attr.BOLD}:{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END}{attr.ITALIC} {attr.BOLD}{format_row_size(dropped_rows)} {attr.END}{attr.ITALIC}were removed ({dropped_percent:.2%}{attr.END})")
+    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END}{attr.ITALIC} Resulting in a {attr.BOLD}{attr.BLUE}{filesize_diff}{attr.END}{attr.ITALIC} file reduction ({filesize_percent:.2%}{attr.END})")
+    print(f"\u200B {attr.BOLD}{' '.rjust(width)} :{attr.END} {attr.BOLD}{attr.BLUE}↳{attr.END}{attr.ITALIC} Total processing completed in {attr.BOLD}{attr.BLUE}{processing_time}{attr.END}")
+    print("") # Have a clean/empty line before the commandline prompt
 
-def parse_file_size(file_size_str):
+def format_row_size(rows):
     """
-    Parses a human-readable file size string (e.g., "1.23 MB") into bytes.
+    Formats a number into a human-readable string with an approximation.
 
     Args:
-        file_size_str (str): The file size string.
+        rows (int|float): The number of rows to format.
 
     Returns:
-        int: The file size in bytes.
+        str: The formatted string with the approximation.
+    """
+    if not isinstance(rows, (int, float)):
+        raise TypeError("Input must be a number (int or float)")
+
+    if rows < 1000:
+        return f"{attr.END}{attr.BOLD}{attr.BLUE}{rows} rows{attr.END}"
+    elif rows < 1000000:
+        approx = rows / 1000
+        return f"{attr.END}{attr.BOLD}{attr.BLUE}~{f'{approx:.0f}'} Thousand {attr.END}{attr.ITALIC}{attr.BLUE}({rows:,}){attr.END}{attr.BOLD}{attr.BLUE} rows"
+    elif rows < 1000000000:
+        approx = rows / 1000000
+        return f"{attr.END}{attr.BOLD}{attr.BLUE}~{int(approx) if approx == int(approx) else f'{approx:.2f}'} Million {attr.END}{attr.ITALIC}{attr.BLUE}({rows:,}){attr.END}{attr.BOLD}{attr.BLUE} rows"
+    else:
+        approx = rows / 1000000000
+        return f"{attr.END}{attr.BOLD}{attr.BLUE}~{int(approx) if approx == int(approx) else f'{approx:.2f}'} Billion {attr.END}{attr.ITALIC}{attr.BLUE}({rows:,}){attr.END}{attr.BOLD}{attr.BLUE} rows"
+
+
+def get_file_size(file_path):
+    """
+    Gets the human-readable size of a file based on the global use_binary_units setting.
+
+    Args:
+        file_path (str): The path to the file.
+
+    Returns:
+        str: The file size in bytes, KB/KiB, or MB/MiB (whichever is most appropriate).
+    """
+    size_bytes = os.path.getsize(file_path)
+
+    if use_binary_units:
+        units = ['Bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']
+        factor = 1024
+    else:
+        units = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+        factor = 1000
+
+    if size_bytes == 0:
+        return f"0 {units[0]}"
+
+    i = 0
+    while size_bytes >= factor and i < len(units) - 1:
+        size_bytes /= factor
+        i += 1
+
+    return f"{size_bytes:.2f} {units[i]}"
+
+class InvalidFileSizeFormatError(ValueError):
+    """Custom exception raised for invalid file size string format."""
+    pass
+
+class InvalidFileSizeUnitError(ValueError):
+    """Custom exception raised for invalid file size unit."""
+    pass
+
+def parse_file_size(file_size_str, use_binary=None):
+    """Parses a file size string (e.g., "1024 KB", "2.5 MiB") into bytes,
+    respecting the use_binary setting.
+
+    Args:
+        file_size_str: The file size string to parse.
+        use_binary (bool, optional): Whether to expect binary (KiB, MiB) or decimal (KB, MB) units.
+                                     Defaults to the global use_binary_units setting.
+
+    Returns:
+        The file size in bytes (integer).
 
     Raises:
-        ValueError: If the file size format is invalid.
+        InvalidFileSizeFormatError: If the input string doesn't match the expected format.
+        InvalidFileSizeUnitError: If the unit specified in the string is not recognized
+                                  based on the use_binary setting.
     """
-    units = {
-        'B': 1,
-        'KB': 1024,
-        'MB': 1024**2,
-        'GB': 1024**3,
-        'TB': 1024**4
-    }
-    match = re.match(r'(\d+(\.\d+)?)\s*([KMGT]B|B)', file_size_str)     # Case-insensitive matching for units
-    if not match:
-        raise ValueError(f"Invalid file size format: {file_size_str}")
-    value, unit = float(match.group(1)), match.group(3).upper()         # Convert unit to uppercase for consistency
-    return value * units[unit]
+    if use_binary is None:
+        use_binary = use_binary_units
 
-def format_file_size(size_in_bytes):
+    units = {}
+    if use_binary:
+        units = {
+            'B': 1, 
+            'KIB': 1024, 
+            'MIB': 1024**2, 
+            'GIB': 1024**3, 
+            'TIB': 1024**4,
+            'PIB': 1024**5, 
+            'EIB': 1024**6, 
+            'ZIB': 1024**7, 
+            'YIB': 1024**8
+        }
+        unit_pattern = r"([KMGTPEZY]?I?B)"
+    else:
+        units = {
+            'B': 1, 
+            'KB': 1000, 
+            'MB': 1000**2, 
+            'GB': 1000**3, 
+            'TB': 1000**4, 
+            'PB': 1000**5, 
+            'EB': 1000**6, 
+            'ZB': 1000**7, 
+            'YB': 1000**8
+        }
+        unit_pattern = r"([KMGTPEZY]?B)"
+
+    match = re.match(r"^\s*(\d+(\.\d+)?)\s*" + unit_pattern + r"\s*$", file_size_str, re.IGNORECASE)
+    if not match:
+        raise InvalidFileSizeFormatError(f"Invalid file size format: '{file_size_str}'. Expected format like '1024 KB' or '2.5 MiB'.")
+
+    size_value = float(match.group(1))
+    unit_str = match.group(3).upper()
+
+    if unit_str in units:
+        return int(size_value * units[unit_str])
+    else:
+        valid_units = ", ".join(units.keys())
+        raise InvalidFileSizeUnitError(f"Invalid unit '{unit_str}' in '{file_size_str}'. Supported units (based on use_binary_units={use_binary}) are: {valid_units}")
+
+def format_file_size(file_size_bytes):
     """
-    Formats a file size in bytes into a human-readable string (e.g., "1.23 MB").
+    Formats a file size in bytes into a human-readable string based on use_binary_units.
 
     Args:
-        size_in_bytes (int): The file size in bytes.
+        file_size_bytes: The file size in bytes (integer).
 
     Returns:
-        str: The human-readable file size string.
+        A string representing the file size with appropriate units.
+
+    Raises:
+        TypeError: If file_size_bytes is not an integer.
     """
-    units = [
-        (1024**4, 'TB'),
-        (1024**3, 'GB'),
-        (1024**2, 'MB'),
-        (1024, 'KB'),
-        (1, 'B')
-    ]
-    for factor, suffix in units:
-        if size_in_bytes >= factor:
-            return f"{size_in_bytes / factor:.2f} {suffix}"
-    return f"{size_in_bytes} B"
+    if not isinstance(file_size_bytes, int):
+        raise TypeError(f"Expected an integer for file_size_bytes, but got {type(file_size_bytes).__name__}")
+
+    if file_size_bytes == 0:
+        return "0 Bytes"
+
+    if use_binary_units:
+        units = ['Bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']
+        factor = 1024
+    else:
+        units = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+        factor = 1000
+
+    i = 0
+    while file_size_bytes >= factor and i < len(units) - 1:
+        file_size_bytes /= factor
+        i += 1
+
+    return f"{file_size_bytes:.2f} {units[i]}"
 
 def subtract_file_sizes(input_filesize_str, output_filesize_str):
     """
@@ -373,7 +476,7 @@ def subtract_file_sizes(input_filesize_str, output_filesize_str):
     return result_size_str
 
 if __name__ == "__main__":
-    app_logo() # Display the application logo 
+    app_logo() # Display the application logo
     
     # Initialize the argument parser with a description of the script
     parser = argparse.ArgumentParser(description="Efficiently remove duplicate CSV data based on specified columns with options to keep first/last matched duplicate and sort output.")
@@ -393,7 +496,7 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s v{__version__}")
     
     # Parse the command-line arguments
-    args = parser.parse_args() 
+    args = parser.parse_args()
     
     # Extract and process the input file path, removing potential surrounding quotes
     input_file = args.file.strip('"')                       # Remove potential double quotes
@@ -452,8 +555,8 @@ if __name__ == "__main__":
         exit(1)
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print(f"{attr.BOLD}{attr.RED}An error occurred:{attr.END} {attr.BOLD}{attr.ITALIC}{e}{attr.END}")
+        filename    = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print(f"\u200B {attr.BOLD}{attr.RED}{'*** An error occurred'.rjust(22)} on Line: {exc_tb.tb_lineno}{attr.END} -- {attr.BOLD}{e}{attr.END}")
+        # print("\n", traceback.format_exc())
         print("")
-        print(f"Error details: File: {fname}, Line: {exc_tb.tb_lineno}") # Provide more specific error information
         exit(1)
