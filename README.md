@@ -95,58 +95,59 @@ The csv-deduper.py accepts the following Options...
 
 # Example Outputs
 ```
-:~$ python3 csv-deduper.py ./my-datafile.csv
+:~$ csv-deduper.py ./my-datafile.csv
 
    ██████╗███████╗██╗   ██╗    ██████╗ ███████╗██████╗ ██╗   ██╗██████╗ ███████╗██████╗ 
   ██╔════╝██╔════╝██║   ██║    ██╔══██╗██╔════╝██╔══██╗██║   ██║██╔══██╗██╔════╝██╔══██╗
   ██║     ███████╗██║   ██║    ██║  ██║█████╗  ██║  ██║██║   ██║██████╔╝█████╗  ██████╔╝
   ██║     ╚════██║╚██╗ ██╔╝    ██║  ██║██╔══╝  ██║  ██║██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗
   ╚██████╗███████║ ╚████╔╝     ██████╔╝███████╗██████╔╝╚██████╔╝██║     ███████╗██║  ██║
-   ╚═════╝╚══════╝  ╚═══╝      ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝
+   ╚═════╝╚══════╝  ╚═══╝      ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝ v0.2.3
 01000011 01010011 01010110 01000100 01000101 01000100 01010101 01010000 01000101 01010010
 
- Deduping... [===========================================================>] 100% | Time: 2.04 sec
- ↳ Deduping Process Completed
- 
    Input File : /home/username/scripts/my-datafile.csv 
-              : ↳ 451,200 rows = 85.78 MB 
+              : ↳ ~451 Thousand (451,200) rows = 85.78 MiB 
      criteria : ↳ Matching duplicate rows based on all columns.
               : ↳ Keeping the first occurance of any duplicates and dropping the remaining
-              : ↳ Final sorting not applied
+              : ↳ Final sorting will not be applied
+              : ↳ Will iterate through the data using 50,000 row chunksize
+
+ Deduping... [===========================================================>] 100% | Time: 2.04 sec
+ ↳ Deduping Process Complete
 
   Output File : /home/username/scripts/my-datafile_deduped.csv 
-              : ↳ 2,923 rows = 544.40 KB 
-              : ↳ 448,277 rows were removed (99.35%)
-              : ↳ Resulting in a 85.25 MB file reduction (99.38%)
+              : ↳ ~3 Thousand (2,923) rows = 544.40 KiB
+      results : ↳ ~448 Thousand (448,277) rows were removed (99.35%)
+              : ↳ Resulting in a 85.25 MiB file reduction (99.38%)
               : ↳ Total processing completed in 2.18 sec
 ```
 
 ```
-:~$ python3 csv-deduper.py -c "Time_(UTC),Item_Number" -sc "Time_(UTC)" -so desc -ch 50000 ./data/my-datafile.csv
+:~$ ./scripts/csv-deduper.py -c "Brand,Category" -sc "Category" -so desc -ch 10000 ./Downloads/products-1357246.csv
 
    ██████╗███████╗██╗   ██╗    ██████╗ ███████╗██████╗ ██╗   ██╗██████╗ ███████╗██████╗ 
   ██╔════╝██╔════╝██║   ██║    ██╔══██╗██╔════╝██╔══██╗██║   ██║██╔══██╗██╔════╝██╔══██╗
   ██║     ███████╗██║   ██║    ██║  ██║█████╗  ██║  ██║██║   ██║██████╔╝█████╗  ██████╔╝
   ██║     ╚════██║╚██╗ ██╔╝    ██║  ██║██╔══╝  ██║  ██║██║   ██║██╔═══╝ ██╔══╝  ██╔══██╗
   ╚██████╗███████║ ╚████╔╝     ██████╔╝███████╗██████╔╝╚██████╔╝██║     ███████╗██║  ██║
-   ╚═════╝╚══════╝  ╚═══╝      ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝
+   ╚═════╝╚══════╝  ╚═══╝      ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═╝ v0.2.3
 01000011 01010011 01010110 01000100 01000101 01000100 01010101 01010000 01000101 01010010
 
- Deduping... [===========================================================>] 100% | Time: 1.79 sec
- ↳ Deduping Process Completed
-
-   Input File : /home/username/scripts/data/my-datafile.csv 
-              : ↳ 451,200 rows = 85.78 MB 
-     criteria : ↳ Matching duplicate rows based on these columns: 'Time_(UTC)' & 'IP_Address'
+   Input File : /home/techstud/Downloads/products-1357246.csv 
+              : ↳ ~1.36 Million (1,357,245) rows | 210.70 MiB 
+     criteria : ↳ Matching duplicate rows based on these columns: 'Brand' & 'Category'
               : ↳ Keeping the first occurance of any duplicates and dropping the remaining
-              : ↳ Final sorting will be applied to all rows based on 'Time_(UTC)' in desc order
+              : ↳ Final sorting will be applied to all rows based on 'Category' in desc order
+              : ↳ Will iterate through the data using 10,000 row chunksize
 
-  Output File : /home/username/scripts/data/my-datafile_csv_deduped.csv 
-              : ↳ 1,382 rows = 544.40 KB 
-              : ↳ 449,818 rows were removed (99.69%)
-              : ↳ Resulting in a 85.25 MB file reduction (99.38%)
-              : ↳ Total Processing completed in 1.81 sec
-              :   ↳ Using ChunkSize: 50,000 lines
+ Deduping... [================================================================================>] 100% | Time: 4.80 sec
+ ↳ Deduping Process Complete 
+
+  Output File : /home/techstud/Downloads/products-1357246_csv_deduped.csv 
+              : ↳ ~1.08 Million (1,083,022) rows | 168.49 MiB 
+      results : ↳ ~274 Thousand (274,223) rows were removed (20.20%)
+              : ↳ Resulting in a 42.21 MiB file reduction (20.03%)
+              : ↳ Total processing completed in 14.83 sec
 
 ```
 
